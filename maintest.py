@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import argparse
 import json
 import decimal
+import numpy as np
 
 
 def init_params():
@@ -228,7 +229,7 @@ def gemRun(reps):
     
     dataFile = open('GEMSA data new.txt','a')
     meansFile = open('GEMSA means new.txt', 'a')
-	outFile = open('GEMSA outputs new.txt', 'a')
+    outFile = open('GEMSA outputs new.txt', 'a')
     
 #    agingParentList = [ 0.0, 0.1, 0.2, 0.4 ] 
 #    careProbList = [ 0.0004, 0.0008, 0.0012, 0.0016 ] 
@@ -253,24 +254,74 @@ def gemRun(reps):
                     print "Trying retirement age: ", variableAge
                     taxList = []
                     taxSum = 0.0
-                    meansFile.write(str(variableCare) + "\t" + str(variableProb) + "\t" + str(variableRetired) + "\t" + str(variableAge) + "\t")
+                    meansFile.write(str(variableCare) + "\t" + str(variableProb) + "\t" + str(variableRetired) + "\t" + str(variableAge) + "\n")
                     for i in range ( 0, reps ):
                         print i,
                         s = Sim(p)
-                        tax = s.run()
+                        tax, seed = s.run()
                         taxList.append(tax)
                         taxSum += tax
                         print tax
-                        dataFile.write(str(variableCare) + "\t" + str(variableProb) + "\t" + str(variableRetired) + "\t" + str(variableAge) + "\t" + str(tax) + "\n")    
+                        dataFile.write(str(seed) + "\t" + str(variableCare) + "\t" + str(variableProb) + "\t" + str(variableRetired) + "\t" + str(variableAge) + "\t" + str(tax) + "\n")    
                     taxMeans.append(pylab.mean(taxList))
                     outFile.write(str(taxSum/reps) + "\n")
                     taxSEs.append(pylab.std(taxList) / math.sqrt(reps))
     
     dataFile.close()
     meansFile.close()
-	outFile.close()
+    outFile.close()
 
-
+#######################################################
+##runs for sensitivity analysis using GEM-SA - LPtau and Maximin LH
+    
+def sensitivityRun(runtype, ageingList, careList, retiredHList, retiredAList, reps):    
+    taxMeans = []
+    taxSEs = []
+    
+    p['verboseDebugging'] = False
+    p['singleRunGraphs'] = False
+    p['interactiveGraphics'] = False
+    
+    dataFile = open(runtype + ' GEMSA data.txt','a')
+    meansFile = open(runtype + ' GEMSA means.txt', 'a')
+    outFile = open(runtype + ' GEMSA outputs.txt', 'a')
+    
+#    agingParentList = [ 0.0, 0.1, 0.2, 0.4 ] 
+#    careProbList = [ 0.0004, 0.0008, 0.0012, 0.0016 ] 
+#    retiredHoursList = [ 20.0, 30.0, 40.0, 60.0 ] 
+#    retiredAgeList = [ 60.0 ]
+#    ageingParentList = [ 0.0, 0.1 ] 
+#    careProbList = [ 0.0004 ] 
+#    retiredHoursList = [ 20.0 ] 
+#    retiredAgeList = [ 60.0 ]
+    
+    for run in xrange(len(ageingList)):
+        p['agingParentsMoveInWithKids'] = ageingList[run]
+        p['personCareProb'] = careList[run]
+        p['retiredHours'] = retiredHList[run]
+        p['ageOfRetirement'] = retiredAList[run]
+        print "Trying parents-moving-in probability: ", ageingList[run]
+        print "Trying person care probability: ", careList[run]
+        print "Trying retired hours: ", retiredHList[run]
+        print "Trying retirement age: ", retiredAList[run]
+        taxList = []
+        taxSum = 0.0
+        meansFile.write(str(ageingList[run]) + "\t" + str(careList[run]) + "\t" + str(retiredHList[run]) + "\t" + str(retiredAList[run]) + "\n")
+        for i in range ( 0, reps ):
+            print i,
+            s = Sim(p)
+            tax, seed = s.run()
+            taxList.append(tax)
+            taxSum += tax
+            print tax
+            dataFile.write(str(seed) + "\t" + str(ageingList[run]) + "\t" + str(careList[run]) + "\t" + str(retiredHList[run]) + "\t" + str(retiredAList[run]) + "\t" + str(tax) + "\n")    
+        taxMeans.append(pylab.mean(taxList))
+        outFile.write(str(taxSum/reps) + "\n")
+        taxSEs.append(pylab.std(taxList) / math.sqrt(reps))
+    
+    dataFile.close()
+    meansFile.close()
+    outFile.close()
 #######################################################
 ## A profiling run; use import pstats then p = pstats.Stats('profile.txt') then p.sort_stats('time').print_stats(10)
 #cProfile.run('s.run()','profile.txt')
@@ -311,14 +362,14 @@ def loadCommandLine(dict):
     file (if required), otherwise will return the dict argument unchanged"""
     parser = argparse.ArgumentParser(
         description='lives v1.0: complex social behaviour simulation.',
-        epilog='Example: "lives -f test.json -n 3" --- run 3 sims with test.json\'s params',
+        epilog='Example: "maintest.py -f test.json -n 3" --- run 3 sims with test.json\'s params',
         formatter_class=argparse.RawTextHelpFormatter,
         prog='lives',
         usage='use "%(prog)s -h" for more information')
     group = parser.add_mutually_exclusive_group()
     parser.add_argument(
         '-f', '--file',
-        help='parameters file in JSON format e.g. postdoc.json')
+        help='parameters file in JSON format e.g. soylent.json')
     group.add_argument(
         '-n', '--num', metavar='N', type=int, default=0,
         help='number of runs to carry out.')
@@ -326,11 +377,17 @@ def loadCommandLine(dict):
         help='retirement batch, number of iterations.')
     group.add_argument('-g', '--gem', metavar='G', type=int, default=0, 
         help='GEM-SA batch for sensitivity analysis, number of iterations.')
+    group.add_argument('-l', '--lptau', metavar='L', type=int, default=0,
+        help='sensitivity analysis batch with LPtau sampling.')
+    group.add_argument('-m', '--maximin', metavar='m', type=int, default=0,
+        help='sensitivity analysis batch with maximin latin hypercube sampling.')
     args = parser.parse_args()
     print("~ Filename: {}".format(args.file))
     print("~ Number:   {}".format(args.num))
     print("~ Retire:   {}".format(args.retire))
     print("~ GEM-SA:   {}".format(args.gem))
+    print("~ LPtau: {}".format(args.lptau))
+    print("~ Maximin: {}".format(args.maximin))
     if args.file:
         #agingParentList = json.load(retireList, parse_float=decimal.Decimal)
         res = loadParamFile (args.file, dict)
@@ -351,6 +408,33 @@ def loadCommandLine(dict):
         res = loadParamFile('gem.json', dict)
         print("List = {}".format(dict))
         gemRun(args.gem)
+    elif args.lptau:
+        sim_array = np.genfromtxt('lptau-4params.txt', delimiter=' ')
+        sim_list = list(sim_array.T)
+        # print(sim_list)
+        ageingParentSettings = sim_list[0]
+        careProbSettings = sim_list[1]
+        retiredHoursSettings = sim_list[2]
+        retiredAgeSettings = sim_list[3]
+        # print(ageingParentSettings)
+        # print(careProbSettings)
+        # print(retiredHoursSettings)
+        # print(retiredAgeSettings)
+        sensitivityRun('LPtau', ageingParentSettings, careProbSettings, retiredHoursSettings, retiredAgeSettings, args.lptau)
+    elif args.maximin:
+        sim_array = np.genfromtxt('latinhypercube-4params.txt', delimiter=' ')
+        sim_list = list(sim_array.T)
+        # print(sim_list)
+        ageingParentSettings = sim_list[0]
+        careProbSettings = sim_list[1]
+        retiredHoursSettings = sim_list[2]
+        retiredAgeSettings = sim_list[3]
+        # print(ageingParentSettings)
+        # print(careProbSettings)
+        # print(retiredHoursSettings)
+        # print(retiredAgeSettings)
+        sensitivityRun('Maximin', ageingParentSettings, careProbSettings, retiredHoursSettings, retiredAgeSettings, args.maximin)
+
     else:
         basicRun(p)
     return dict
