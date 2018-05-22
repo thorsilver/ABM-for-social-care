@@ -60,7 +60,8 @@ class Sim:
         #pprint.pprint(self.p)
         #raw_input("Happy with these parameters?  Press enter to run.")
 
-        random.seed(self.p['favouriteSeed'])
+        seed = time.time()
+        random.seed(seed)
 
         self.initializePop()
         if self.p['interactiveGraphics']:
@@ -68,8 +69,8 @@ class Sim:
         for self.year in range (self.p['startYear'],
                                 self.p['endYear']+1):
             self.doOneYear()
-            if self.year == self.p['thePresent']:
-                random.seed()
+            #if self.year == self.p['thePresent']:
+            #    random.seed()
 
         if self.p['singleRunGraphs']:
             self.doGraphs()
@@ -78,7 +79,7 @@ class Sim:
             print "Entering main loop to hold graphics up there."
             self.window.mainloop()
 
-        return self.totalTaxBurden[-1]
+        return self.totalTaxBurden[-1], seed
 
 
     def initializePop(self):
