@@ -98,7 +98,7 @@ def init_params():
     ## Description of the map, towns, and houses
     p['mapGridXDimension'] = 8
     p['mapGridYDimension'] = 12    
-    p['townGridDimension'] = 25
+    p['townGridDimension'] = 40
     p['numHouseClasses'] = 3
     p['houseClasses'] = ['small','medium','large']
     p['cdfHouseClasses'] = [ 0.6, 0.9, 5.0 ]
@@ -322,6 +322,69 @@ def sensitivityRun(runtype, ageingList, careList, retiredHList, retiredAList, re
     dataFile.close()
     meansFile.close()
     outFile.close()
+
+
+#######################################################
+##runs for sensitivity analysis using GEM-SA - LPtau and Maximin LH
+    
+# def sensitivityLarge(runtype, ageingList, careList, retiredHList, retiredAList, baseDieList, babyDieList, personCareList, maleCareList, femaleCareList, \
+#     childHoursList, homeAdultList, workingAdultList, lowCareList, growingBirthList, basicDivorceList, variableDivorceList, basicMaleMarriageList, \
+#     basicFemaleMarriageList, probMoveList, moveHouseholdList, probMoveOutList, probMoveBackList, reps): 
+def sensitivityLarge(runtype, input_list, reps):   
+    taxMeans = []
+    taxSEs = []
+    
+    p['verboseDebugging'] = False
+    p['singleRunGraphs'] = False
+    p['interactiveGraphics'] = False
+    
+    outFile = open(runtype + ' GEMSA outputs large.txt', 'a')
+    
+    for run in xrange(len(input_list[0])):
+        print("Running simulation number {}...".format(run))
+        print("Number of reps: {}".format(reps))
+        sim_list = np.array(input_list)
+        print(sim_list)
+        p['agingParentsMoveInWithKids'] = sim_list[0,run]
+        print(p['agingParentsMoveInWithKids'])
+        p['personCareProb'] = sim_list[1,run]
+        p['retiredHours'] = sim_list[2,run]
+        p['ageOfRetirement'] = sim_list[3,run]
+        p['baseDieProb'] = sim_list[4,run]
+        p['babyDieProb'] = sim_list[5,run]
+        p['personCareProb'] = sim_list[6,run]
+        p['maleAgeCareScaling'] = sim_list[7,run]
+        p['femaleAgeCareScaling'] = sim_list[8,run]
+        p['childHours'] = sim_list[9,run]
+        p['homeAdultHours'] = sim_list[10,run]
+        p['workingAdultHours'] = sim_list[11,run]
+        p['lowCareHandicap'] = sim_list[12,run]
+        p['growingPopBirthProb'] = sim_list[13,run]
+        p['basicDivorceRate'] = sim_list[14,run]
+        p['variableDivorce'] = sim_list[15,run] 
+        p['basicMaleMarriageProb'] =  sim_list[16,run]
+        p['basicFemaleMarriageProb'] = sim_list[17,run]
+        p['probApartWillMoveTogether'] = sim_list[18,run]
+        p['coupleMovesToExistingHousehold'] = sim_list[19,run]
+        p['basicProbAdultMoveOut'] = sim_list[20,run]
+        p['variableMoveBack'] = sim_list[21,run]
+        taxList = []
+        taxSum = 0.0
+        for i in range ( 0, reps ):
+            print i,
+            s = Sim(p)
+            tax, seed = s.run()
+            taxList.append(tax)
+            taxSum += tax
+            print tax
+        taxMeans.append(pylab.mean(taxList))
+        outFile.write(str(taxSum/reps) + str(seed) + "\n")
+        taxSEs.append(pylab.std(taxList) / math.sqrt(reps))
+    
+    outFile.close()
+
+
+
 #######################################################
 ## A profiling run; use import pstats then p = pstats.Stats('profile.txt') then p.sort_stats('time').print_stats(10)
 #cProfile.run('s.run()','profile.txt')
@@ -379,8 +442,10 @@ def loadCommandLine(dict):
         help='GEM-SA batch for sensitivity analysis, number of iterations.')
     group.add_argument('-l', '--lptau', metavar='L', type=int, default=0,
         help='sensitivity analysis batch with LPtau sampling.')
-    group.add_argument('-m', '--maximin', metavar='m', type=int, default=0,
+    group.add_argument('-m', '--maximin', metavar='M', type=int, default=0,
         help='sensitivity analysis batch with maximin latin hypercube sampling.')
+    group.add_argument('-b', '--bigly', metavar='B', type=int, default=0,
+        help='bigly sensitivity analysis batch with maximin latin hypercube sampling.')
     args = parser.parse_args()
     print("~ Filename: {}".format(args.file))
     print("~ Number:   {}".format(args.num))
@@ -388,6 +453,7 @@ def loadCommandLine(dict):
     print("~ GEM-SA:   {}".format(args.gem))
     print("~ LPtau: {}".format(args.lptau))
     print("~ Maximin: {}".format(args.maximin))
+    print("~ Big SA: {}".format(args.bigly))
     if args.file:
         #agingParentList = json.load(retireList, parse_float=decimal.Decimal)
         res = loadParamFile (args.file, dict)
@@ -434,6 +500,12 @@ def loadCommandLine(dict):
         # print(retiredHoursSettings)
         # print(retiredAgeSettings)
         sensitivityRun('Maximin', ageingParentSettings, careProbSettings, retiredHoursSettings, retiredAgeSettings, args.maximin)
+    elif args.bigly:
+        sim_array = np.genfromtxt('latinhypercube-22params.txt', delimiter=' ')
+        sim_list = list(sim_array.T)
+        print(sim_list)
+        np.savetxt('hypercube22_GEMSA_inputs.txt', sim_array, fmt='%1.8f', delimiter='\t', newline='\n')
+        sensitivityLarge('hypercube22', sim_list, args.bigly)
 
     else:
         basicRun(p)
