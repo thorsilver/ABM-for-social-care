@@ -154,12 +154,13 @@ class Sim:
         self.doDivorces()
         self.doMarriages()
         self.doMovingAround()
-
+        #print("Number of alive agents: {}".format(len(self.pop.livingPeople)))
         self.pyramid.update(self.year, self.p['num5YearAgeClasses'], self.p['numCareLevels'],
                             self.p['pixelsInPopPyramid'], self.pop.livingPeople)
         self.doStats()
         if (self.p['interactiveGraphics']):
             self.updateCanvas()
+        
 
     def doDeaths(self):
         """Consider the possibility of death for each person in the sim."""
