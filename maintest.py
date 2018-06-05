@@ -422,7 +422,7 @@ def sensitivityTenParams(runtype, input_list, reps):
             taxSum += tax
             print tax
         taxMeans.append(pylab.mean(taxList))
-        outFile.write(str(taxSum/reps) + "\n" + str(seed) + "\n")
+        outFile.write(str(taxSum/reps) + "\t" + str(seed) + "\n")
         taxSEs.append(pylab.std(taxList) / math.sqrt(reps))
     
     outFile.close()
@@ -498,7 +498,7 @@ def loadCommandLine(dict):
     print("~ LPtau: {}".format(args.lptau))
     print("~ Maximin: {}".format(args.maximin))
     print("~ Big SA: {}".format(args.bigly))
-    print("~Ten Params: {}".format(args.tenparams))
+    print("~ Ten Params: {}".format(args.tenparams))
     if args.file:
         #agingParentList = json.load(retireList, parse_float=decimal.Decimal)
         res = loadParamFile (args.file, dict)
