@@ -66,7 +66,7 @@ class Sim:
         self.initializePop()
         if self.p['interactiveGraphics']:
             self.initializeCanvas()        
-        for self.year in range (self.p['startYear'],
+        for self.year in range(self.p['startYear'],
                                 self.p['endYear']+1):
             self.doOneYear()
             #if self.year == self.p['thePresent']:
@@ -79,7 +79,7 @@ class Sim:
             print "Entering main loop to hold graphics up there."
             self.window.mainloop()
 
-        return self.totalTaxBurden[-1], seed
+        return self.totalTaxBurden[-1], seed, self.totalTaxBurden
 
 
     def initializePop(self):

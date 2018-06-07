@@ -427,6 +427,54 @@ def sensitivityTenParams(runtype, input_list, reps):
     
     outFile.close()
 
+
+#######################################################
+# Recurrent neural network experiments -- 10 params, outputs recorded per year
+
+def RNNOutputScenario(runtype, input_list, reps):
+    taxMeans = []
+    taxSEs = []
+
+    p['verboseDebugging'] = False
+    p['singleRunGraphs'] = False
+    p['interactiveGraphics'] = False
+
+    outFile = open(runtype + ' GEMSA outputs.txt', 'a')
+    outFile2 = open(runtype + ' yearly outputs.txt', 'a')
+
+    for run in xrange(len(input_list[0])):
+        print("Running simulation number {}...".format(run))
+        print("Number of reps: {}".format(reps))
+        sim_list = np.array(input_list)
+        #print(sim_list)
+        p['agingParentsMoveInWithKids'] = sim_list[0, run]
+        p['baseCareProb'] = sim_list[1, run]
+        p['retiredHours'] = sim_list[2, run]
+        p['ageOfRetirement'] = sim_list[3, run]
+        p['personCareProb'] = sim_list[4, run]
+        p['maleAgeCareScaling'] = sim_list[5, run]
+        p['femaleAgeCareScaling'] = sim_list[6, run]
+        p['childHours'] = sim_list[7, run]
+        p['homeAdultHours'] = sim_list[8, run]
+        p['workingAdultHours'] = sim_list[9, run]
+
+        taxList = []
+        taxSum = 0.0
+        for i in range(0, reps):
+            print i,
+            s = Sim(p)
+            tax, seed, carecost = s.run()
+            taxList.append(tax)
+            taxSum += tax
+            print tax
+        taxMeans.append(pylab.mean(taxList))
+        outFile.write(str(taxSum / reps) + "\t" + str(seed) + "\n")
+        outFile2.write(str(carecost) + "\n")
+        taxSEs.append(pylab.std(taxList) / math.sqrt(reps))
+
+    outFile.close()
+    outFile2.close()
+
 #######################################################
 ## A profiling run; use import pstats then p = pstats.Stats('profile.txt') then p.sort_stats('time').print_stats(10)
 #cProfile.run('s.run()','profile.txt')
@@ -490,6 +538,8 @@ def loadCommandLine(dict):
         help='bigly sensitivity analysis batch with maximin latin hypercube sampling.')
     group.add_argument('-t', '--tenparams', metavar='T', type=int, default=0,
         help='10 parameter sensitivity analysis batch with maximin latin hypercube sampling.')
+    group.add_argument('-c', '--recurrent', metavar='C', type=int, default=0,
+                       help='10 parameter time-series run for RNN.')
     args = parser.parse_args()
     print("~ Filename: {}".format(args.file))
     print("~ Number:   {}".format(args.num))
@@ -499,6 +549,8 @@ def loadCommandLine(dict):
     print("~ Maximin: {}".format(args.maximin))
     print("~ Big SA: {}".format(args.bigly))
     print("~ Ten Params: {}".format(args.tenparams))
+    print("~ Ten Params RNN: {}".format(args.recurrent))
+
     if args.file:
         #agingParentList = json.load(retireList, parse_float=decimal.Decimal)
         res = loadParamFile (args.file, dict)
@@ -557,7 +609,12 @@ def loadCommandLine(dict):
         #print(sim_list)
         np.savetxt('lptau10_GEMSA_inputs.txt', sim_array, fmt='%1.8f', delimiter='\t', newline='\n')
         sensitivityTenParams('lptau10', sim_list, args.tenparams)
-
+    elif args.recurrent:
+        sim_array = np.genfromtxt('lptau10round2_GEMSA_inputs.csv', delimiter=',')
+        sim_list = list(sim_array.T)
+        print(sim_list)
+        np.savetxt('lptau10_recurrent_inputs.txt', sim_array, fmt='%1.8f', delimiter='\t', newline='\n')
+        RNNOutputScenario('LPtauRNN', sim_list, args.recurrent)
     else:
         basicRun(p)
     return dict
